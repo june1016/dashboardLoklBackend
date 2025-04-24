@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Installments {
+  id                   String         @id @db.Uuid
+  investmentId         String?        @db.Uuid
+  totalValue           Float?
+  investmentValue      Float
+  subscriptionFeeValue Float?
+  installmentNumber    Int?
+  paymentDate          DateTime?      @db.Date
+  createdAt            DateTime       @db.Timestamptz(6)
+  updatedAt            DateTime       @db.Timestamptz(6)
+  Investments          Investments?   @relation(fields: [investmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Transactions         Transactions[]
+}
+
+model Investments {
+  id              String         @id @db.Uuid
+  projectId       String         @db.Uuid
+  unitsQuantity   Float
+  investmentValue Int
+  unitValue       Int
+  status          String         @db.VarChar(255)
+  type            String         @db.VarChar(255)
+  createdAt       DateTime       @db.Timestamptz(6)
+  updatedAt       DateTime       @db.Timestamptz(6)
+  notes           String?
+  couponCode      String?        @db.VarChar(255)
+  email           String?        @db.VarChar(255)
+  Installments    Installments[]
+  Projects        Projects       @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+}
+
+model Projects {
+  id                        String        @id @db.Uuid
+  name                      String?       @db.VarChar(255)
+  description               String?
+  city                      String?       @db.VarChar(255)
+  country                   String?       @db.VarChar(255)
+  logo                      String?       @db.VarChar(255)
+  unitPrice                 Int
+  valuation                 BigInt
+  minimumUnitsPurchase      Int
+  subscriptionFeePercentage Float
+  createdAt                 DateTime      @db.Timestamptz(6)
+  updatedAt                 DateTime      @db.Timestamptz(6)
+  deletedAt                 DateTime?     @db.Timestamptz(6)
+  squareMeters              Float?
+  projectCode               String        @unique @db.VarChar(255)
+  Investments               Investments[]
+}
+
+model Transactions {
+  id                   String        @id @db.Uuid
+  installmentId        String?       @db.Uuid
+  gatewayTransactionId String        @db.VarChar(255)
+  reference            String        @db.VarChar(255)
+  value                Float
+  paymentMethodType    String        @db.VarChar(255)
+  status               String        @db.VarChar(255)
+  customerEmail        String?       @db.VarChar(255)
+  paymentMethodFee     Float?
+  notes                String?       @db.VarChar(255)
+  createdAt            DateTime      @db.Timestamptz(6)
+  updatedAt            DateTime      @db.Timestamptz(6)
+  Installments         Installments? @relation(fields: [installmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([gatewayTransactionId], map: "transactions_gateway_transaction_id")
+}
+
+model investments_new {
+  id              Int       @id @default(autoincrement())
+  projectid       Int?
+  unitsquantity   Int?
+  investmentvalue Decimal?  @db.Decimal
+  unitvalue       Decimal?  @db.Decimal
+  status          String?   @db.VarChar(255)
+  type            String?   @db.VarChar(255)
+  createdat       DateTime? @db.Timestamp(6)
+  updatedat       DateTime? @db.Timestamp(6)
+  notes           String?
+  couponcode      String?   @db.VarChar(255)
+}
