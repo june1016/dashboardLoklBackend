@@ -37,6 +37,7 @@ model Investments {
   email           String?        @db.VarChar(255)
   Installments    Installments[]
   Projects        Projects       @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+   UsersInMora     UsersInMora[]
 }
 
 model Projects {
@@ -56,6 +57,7 @@ model Projects {
   squareMeters              Float?
   projectCode               String        @unique @db.VarChar(255)
   Investments               Investments[]
+  UsersInMora               UsersInMora[]
 }
 
 model Transactions {
@@ -88,4 +90,35 @@ model investments_new {
   updatedat       DateTime? @db.Timestamp(6)
   notes           String?
   couponcode      String?   @db.VarChar(255)
+}
+
+
+model UsersInMora {
+  id             String       @id @default(uuid()) @db.Uuid
+  email          String       @db.VarChar(255)
+  moraAmount     Float
+  moraStartDate  DateTime
+  investmentId   String       @db.Uuid
+  projectId      String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  
+  // Relaciones
+  Investments    Investments  @relation(fields: [investmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Projects       Projects     @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+  
+  @@index([email])
+  @@index([investmentId])
+  @@index([projectId])
+}
+
+model AutomationExecution {
+  id        Int       @id @default(autoincrement())
+  type      String    // 'report', 'email', 'table'
+  status    String    // 'success', 'error'
+  message   String?
+  timestamp DateTime  @default(now())
+  
+  @@index([type])
+  @@index([timestamp])
 }

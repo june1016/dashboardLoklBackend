@@ -2,95 +2,109 @@
  * Obtiene comparativa de dinero esperado vs real por mes
  */
 exports.getExpectedVsActual = async (req, res) => {
-    try {
-      const { prisma } = req;
-      const { year } = req.query;
-      
-      // Determinar el año de análisis (por defecto el actual)
-      const analysisYear = year ? parseInt(year) : new Date().getFullYear();
-      
-      // Obtener todas las cuotas con sus transacciones para el año
-      const installments = await prisma.installment.findMany({
-        where: {
-          paymentDate: {
-            gte: new Date(`${analysisYear}-01-01`),
-            lt: new Date(`${analysisYear + 1}-01-01`)
-          },
-          investment: {
-            type: 'subscription',
-            status: { not: 'declined' }
-          }
-        },
-        include: {
-          transactions: {
-            where: { status: 'APPROVED' }
-          }
-        }
-      });
-      
-      // Preparar datos mensuales
-      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      const monthlyData = monthNames.map((name, month) => {
-        // Filtrar cuotas del mes
-        const monthInstallments = installments.filter(inst => 
-          new Date(inst.paymentDate).getMonth() === month
-        );
-        
-        // Calcular dinero esperado (suma de totalValue)
-        const expected = monthInstallments.reduce(
-          (sum, inst) => sum + inst.totalValue, 
-          0
-        );
-        
-        // Calcular dinero real (transacciones aprobadas - fees)
-        const actual = monthInstallments.reduce(
-          (sum, inst) => sum + inst.transactions.reduce(
-            (tSum, t) => tSum + (t.value - t.paymentMethodFee),
-            0
-          ),
-          0
-        );
-        
-        return {
-          name,
-          expected,
-          actual,
-          difference: actual - expected
-        };
-      });
-      
-      res.json(monthlyData);
-    } catch (error) {
-      console.error('Error obteniendo datos financieros:', error);
-      res.status(500).json({ error: 'Error obteniendo datos financieros' });
+  try {
+    const prisma = req.prisma;
+    
+    // Verificar que prisma esté disponible
+    if (!prisma) {
+      console.error('Prisma no está disponible en la solicitud');
+      return res.status(500).json({ error: 'Error de configuración del servidor' });
     }
-  };
+    
+    const { year } = req.query;
+    
+    // Determinar el año de análisis (por defecto el actual)
+    const analysisYear = year ? parseInt(year) : new Date().getFullYear();
+    
+    // Obtener todas las cuotas con sus transacciones para el año
+    const installments = await prisma.Installments.findMany({
+      where: {
+        paymentDate: {
+          gte: new Date(`${analysisYear}-01-01`),
+          lt: new Date(`${analysisYear + 1}-01-01`)
+        },
+        Investments: {
+          type: 'subscription',
+          status: { not: 'declined' }
+        }
+      },
+      include: {
+        Transactions: {
+          where: { status: 'APPROVED' }
+        }
+      }
+    });
+    
+    // Preparar datos mensuales
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const monthlyData = monthNames.map((name, month) => {
+      // Filtrar cuotas del mes
+      const monthInstallments = installments.filter(inst => 
+        new Date(inst.paymentDate).getMonth() === month
+      );
+      
+      // Calcular dinero esperado (suma de totalValue)
+      const expected = monthInstallments.reduce(
+        (sum, inst) => sum + inst.totalValue, 
+        0
+      );
+      
+      // Calcular dinero real (transacciones aprobadas - fees)
+      const actual = monthInstallments.reduce(
+        (sum, inst) => sum + inst.Transactions.reduce(
+          (tSum, t) => tSum + (t.value - (t.paymentMethodFee || 0)),
+          0
+        ),
+        0
+      );
+      
+      return {
+        name,
+        expected,
+        actual,
+        difference: actual - expected
+      };
+    });
+    
+    res.json(monthlyData);
+  } catch (error) {
+    console.error('Error obteniendo datos financieros:', error);
+    res.status(500).json({ error: 'Error obteniendo datos financieros' });
+  }
+};
 
   /**
  * Obtiene datos de mora mensual y acumulada
  */
-exports.getMonthlyOverdue = async (req, res) => {
+  exports.getMonthlyOverdue = async (req, res) => {
     try {
-      const { prisma } = req;
+      const prisma = req.prisma;
+      
+      // Verificar que prisma esté disponible
+      if (!prisma) {
+        console.error('Prisma no está disponible en la solicitud');
+        return res.status(500).json({ error: 'Error de configuración del servidor' });
+      }
+      
       const { year } = req.query;
       
       // Determinar el año de análisis
       const analysisYear = year ? parseInt(year) : new Date().getFullYear();
       
       // Obtener todas las cuotas del año
-      const installments = await prisma.installment.findMany({
+      const installments = await prisma.Installments.findMany({
         where: {
           paymentDate: {
             gte: new Date(`${analysisYear}-01-01`),
             lt: new Date(`${analysisYear + 1}-01-01`)
           },
-          investment: {
+          Investments: {
             type: 'subscription',
             status: { not: 'declined' }
           }
         },
         include: {
-          transactions: {
+          Transactions: {
             where: { status: 'APPROVED' }
           }
         },
@@ -103,7 +117,7 @@ exports.getMonthlyOverdue = async (req, res) => {
       // Una cuota está en mora si no se pagó antes del día 5 del mes siguiente
       const isInstallmentOverdue = (installment) => {
         // Si tiene transacción aprobada, no está en mora
-        if (installment.transactions.length > 0) return false;
+        if (installment.Transactions.length > 0) return false;
         
         const dueDate = new Date(installment.paymentDate);
         
@@ -153,25 +167,31 @@ exports.getMonthlyOverdue = async (req, res) => {
   /**
  * Obtiene datos de mora por proyecto
  */
-exports.getOverdueByProject = async (req, res) => {
+  exports.getOverdueByProject = async (req, res) => {
     try {
-      const { prisma } = req;
+      const prisma = req.prisma;
+      
+      // Verificar que prisma esté disponible
+      if (!prisma) {
+        console.error('Prisma no está disponible en la solicitud');
+        return res.status(500).json({ error: 'Error de configuración del servidor' });
+      }
       
       // Obtener todos los proyectos con inversiones y cuotas
-      const projects = await prisma.project.findMany({
+      const projects = await prisma.Projects.findMany({
         where: {
           deletedAt: null
         },
         include: {
-          investments: {
+          Investments: {
             where: {
               type: 'subscription',
               status: { not: 'declined' }
             },
             include: {
-              installments: {
+              Installments: {
                 include: {
-                  transactions: {
+                  Transactions: {
                     where: { status: 'APPROVED' }
                   }
                 }
@@ -183,7 +203,7 @@ exports.getOverdueByProject = async (req, res) => {
       
       // Función para verificar mora
       const isInstallmentOverdue = (installment) => {
-        if (installment.transactions.length > 0) return false;
+        if (installment.Transactions.length > 0) return false;
         
         const dueDate = new Date(installment.paymentDate);
         const graceDate = new Date(dueDate);
@@ -198,8 +218,8 @@ exports.getOverdueByProject = async (req, res) => {
         let amount = 0;
         
         // Sumar mora de todas las inversiones del proyecto
-        project.investments.forEach(investment => {
-          investment.installments.forEach(installment => {
+        project.Investments.forEach(investment => {
+          investment.Installments.forEach(installment => {
             if (isInstallmentOverdue(installment)) {
               amount += installment.totalValue;
             }

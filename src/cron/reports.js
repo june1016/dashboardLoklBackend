@@ -3,15 +3,34 @@ const path = require('path');
 const fs = require('fs');
 
 /**
- * Genera un reporte de mora en Excel
+ * Genera un reporte de mora en Excel o PDF
  */
-async function generateOverdueReport(prisma) {
+async function generateOverdueReport(prisma, format = 'excel') {
   // Crear directorio para reportes si no existe
   const reportsDir = path.join(__dirname, '../../reports');
   if (!fs.existsSync(reportsDir)) {
     fs.mkdirSync(reportsDir, { recursive: true });
   }
 
+  // Obtener usuarios en mora
+  const usersInMora = await getUsersInMora(prisma);
+  
+  // Determinar formato y generar el reporte
+  if (format.toLowerCase() === 'excel') {
+    return generateExcelReport(usersInMora, reportsDir);
+  } else if (format.toLowerCase() === 'pdf') {
+    // Para esta primera versión, solo generamos Excel
+    // En una versión futura se puede implementar PDF
+    return generateExcelReport(usersInMora, reportsDir);
+  } else {
+    throw new Error('Formato no soportado');
+  }
+}
+
+/**
+ * Genera un reporte Excel
+ */
+async function generateExcelReport(usersInMora, reportsDir) {
   // Crear libro de Excel
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Reporte de Mora');
@@ -25,9 +44,6 @@ async function generateOverdueReport(prisma) {
     { header: 'Días en Mora', key: 'days', width: 12 },
     { header: 'Valor Inversión', key: 'investment', width: 15 }
   ];
-  
-  // Obtener usuarios en mora
-  const usersInMora = await getUsersInMora(prisma);
   
   // Agregar filas
   for (const user of usersInMora) {
@@ -56,14 +72,37 @@ async function generateOverdueReport(prisma) {
 }
 
 /**
- * Obtiene la lista de usuarios en mora con detalles
+ * Obtiene la lista de usuarios en mora
  */
 async function getUsersInMora(prisma) {
-  // Implementar la lógica para obtener usuarios en mora
-  // Similar a la que usamos en el controlador de mora por proyecto
-  // ...
+  // Primero obtenemos todos los UsersInMora de la base de datos
+  const usersFromDb = await prisma.usersInMora.findMany({
+    include: {
+      Investments: true,
+      Projects: true
+    }
+  });
+  
+  // Si hay datos en la tabla, los usamos
+  if (usersFromDb.length > 0) {
+    return usersFromDb.map(user => ({
+      email: user.email,
+      projectName: user.Projects.name || 'Desconocido',
+      moraAmount: user.moraAmount,
+      moraStartDate: user.moraStartDate,
+      investmentValue: user.Investments.investmentValue
+    }));
+  }
+  
+  // Si no hay datos, calculamos on-the-fly (menos eficiente)
+  // Implementar lógica similar a updateUsersInMora para calcular usuarios en mora
+  // ...código para calcular usuarios en mora desde las inversiones...
+  
+  // Retornamos un array vacío como fallback
+  return [];
 }
 
+// Funciones auxiliares
 function formatDate(date) {
   return date.toLocaleDateString('es-CO');
 }
