@@ -48,4 +48,10 @@ app.use((err, req, res, next) => {
   });
 });
 
+app.use(cors({
+  origin: ['https://lokl-dashboard-mih3fkzhp-june1016s-projects.vercel.app', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
+
 module.exports = { app, prisma };
