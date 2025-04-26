@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const insightsController = require('../controllers/insightsController');
 
-router.get('/payment-patterns', insightsController.getPaymentPatterns);
+
+// Añadir la ruta para la segmentación de clientes
+router.get('/customer-segmentation', insightsController.getCustomerSegmentation);
 
 module.exports = router;

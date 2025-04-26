@@ -3,6 +3,7 @@ const { sendOverdueEmails, setEmailSchedule } = require('../cron/emails');
 const { updateUsersInMora } = require('../cron/usersInMora');
 const { PrismaClient } = require('../../generated/prisma');
 const prisma = new PrismaClient();
+const path = require('path');
 
 // Modelo para almacenar historial de ejecuciones
 const saveExecutionRecord = async (type, status, message) => {
@@ -44,10 +45,20 @@ exports.generateReport = async (req, res) => {
     // Guardar registro de ejecución
     await saveExecutionRecord('report', 'success', `Reporte generado en ${format}`);
     
+    // Extraer solo el nombre del archivo (sin la ruta completa)
+    const fileName = filePath.split(path.sep).pop();
+    
+    // Construir la URL correcta
+    const baseUrl = req.protocol + '://' + req.get('host');
+    const fileUrl = `${baseUrl}/reports/${fileName}`;
+    
     res.json({
       success: true,
       message: 'Reporte generado exitosamente',
-      data: { filePath }
+      data: { 
+        filePath,
+        fileUrl // URL relativa al servidor
+      }
     });
   } catch (error) {
     console.error('Error generando reporte:', error);

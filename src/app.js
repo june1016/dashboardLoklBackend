@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { PrismaClient } = require('../generated/prisma');
 const { initCronJobs } = require('./cron');
 
@@ -17,6 +18,9 @@ const prisma = new PrismaClient();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Servir archivos estáticos desde la carpeta 'reports'
+app.use('/reports', express.static(path.join(__dirname, '../reports')));
 
 // Hacer Prisma disponible en las rutas
 app.use((req, res, next) => {
